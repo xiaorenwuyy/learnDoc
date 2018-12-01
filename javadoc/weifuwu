@@ -1,0 +1,196 @@
+
+1微服务功能
+1，	服务注册与发现
+向注册中心区注册和发现服务
+其实就是服务向注册中心汇报，心跳机制
+
+2，	服务负载均衡
+
+Spring cloud 其实用的是robin  ，消费者从注册中心获取所有的服务信息，然后根据既定的策略，选择一个服务进行消费
+
+
+
+3，	服务的容错
+Spring cloud 用的是hystrix ,有隔离，熔断，和降级的功效
+
+隔离 ：消费者与消费的服务之前用的是单独的线程池，所消费的服务挂了，只是这个线程池挂了，不 影响其他的线程池或者服务
+
+
+熔断：当服务发生故障时，熔断器打开，直接快速响应，而不是再去发网路请求
+
+
+降级：当服务发生故障时，我们可以把请求，
+
+
+
+自我修复也可以 
+Hystrix 有ui 界面的
+
+
+
+
+4  服务网关
+
+  对外统一提供接口
+
+  Spring cloud 用的是zuul
+
+
+
+5,配置服务的统一化管理
+配置服务有spring cloud 的config server 和携程的apollo
+
+
+
+6 请求链路追踪
+请求在各个服务之前的流动
+
+有谷歌的dapper   阿里的eagleeye
+
+
+
+2 ribbon 负载均衡
+与zuul 可以构成 网关的负载均衡
+
+与feign ,resttemplate ?结合 可以做到服务消费的负载均衡
+
+
+
+3 spring cloud 优秀组件
+
+除了5大组件，eureka,feign,ribbon,hystrix,zuul 外还有几个
+
+Spring cloud sleuth 链路追踪组件，封装了dapper 等组件
+
+
+Spring cloud  stream  数据流操作包
+封装了像rocketmq,kafka 等消息组件
+
+
+3 eureka  配置
+
+Eureka server  配置
+
+1，	引进 jar 包
+（Spring-cloud-starter-）eureka-server 包
+
+2,配置文件修改
+
+ Eureka.instance.hostname = localhost
+Eureka.client.registerwitheureka = false;
+Eureka.client.registry = false 
+这两项很重要防止eureka server 注册自己
+
+Eureka.client.defaultzone =http://localhost:8071/eureka
+
+默认打开页面
+
+
+
+3入口类配置
+@enableEurekaServer
+
+
+
+Eureka client 配置
+
+1,引入jar 包
+  (Spring-cloud-stater-)eureka
+
+
+2,配置文件修改
+
+  Eureka.client.serviceUrl.defaultzone = http://localhost:8087/eureka
+
+
+3,入口类注解
+
+@enableEurekaClient
+
+
+4 eureka 概念
+1，	服务注册  register
+Eureka Client 向eureka server 注册，
+提供 数据 ip,端口，自身状态等
+
+
+
+2,服务续约  注册后再续约  renew 
+ 时间大概是每30 秒eureka client 向进行e server一次续约，主要是发送心跳告知还活着
+
+  E server 如果 90 秒（client 3次机会）没有收到信息，则会认为client 已经挂掉了，则会在注册表中删除 client 注册信息
+
+
+ 3,获取注册信息  fetchRegistries 
+  Client 从server 中获取注册的信息，大概是每隔30 获取一次（？）
+
+
+4，	服务下线  client 主动的 cancel 
+
+需要在程序关闭时写入代码触发client 向server 发送下线请求
+DiscoverManager.getInstance().shutdownComponent();
+
+
+
+5 服务剔除 server 主动的 eviction 
+
+  Server 90 秒没有接收到服务预约，会把client 的注册信息给删掉
+ 
+ 
+
+5 eureka client 的类
+
+1，DiscoveryClient    注册
+
+   是client 向server 进行注册的
+
+2，InstanceInfoReplicator 
+
+是个线程runnable ，可以执行
+
+InstanceInfoReplicator 是在 discoveryClient 的 initScheduledTasks 方法中触发的
+
+
+    3，
+ 
+
+6 eureka server 的 类
+1，	eurekaBootStrap 
+
+有个方法 initEurekaServerContext();
+
+
+
+2 ，PeerAwareInstanceRegistryImpl
+
+  Register 方法提供了服务注册 和同步到其他的eureka server 服务
+
+ 父类为 AbstractInstanceRegistry  
+  Register 方法，注册信息是放了map 里面的
+
+ replicateToPeers 会循环遍历nodes,这个方法最终调用了node 的register 方法
+
+
+
+
+3  ApplicationResource
+  Peer impl register 方法是被 applicaitonResource 类的  addInstance 调用
+
+
+Renew 是 renewLease 
+  
+
+7 eureka client 获取服务实例慢
+1, client 有个注册延迟
+  在DefaultEurekaClientConfig 中有个方法
+     public int getInitialInstanceInfoReplicationIntervalSeconds() {
+        return configInstance.getIntProperty(
+                namespace + INITIAL_REGISTRATION_REPLICATION_DELAY_KEY, 40).get();
+}
+
+默认4 秒
+
+2，	eureka server  更新缓存时间
+eureka server 每30 秒 更新缓存，即使是刚注册的实例，也不会更新到响应的缓存中
+
+
